@@ -30,8 +30,8 @@ gunzip -c events_077321540.lhe.gz > events.lhe
 
 ### 🗂 Delphes Cards
 ```
-cp /cvmfs/sw.hsf.org/key4hep/releases/2025-01-28/x86_64-almalinux9-gcc14.2.0-opt/delphes/3.5.1pre12-e4qfky/cards/FCC/scenarios/FCChhTrackCov_II.tcl .
-cp /cvmfs/sw.hsf.org/key4hep/releases/2025-01-28/x86_64-almalinux9-gcc14.2.0-opt/delphes/3.5.1pre12-e4qfky/cards/FCC/scenarios/FCChhTrackCov_II.tcl card.tcl
+cp /cvmfs/sw.hsf.org/key4hep/releases/2025-01-28/x86_64-almalinux9-gcc14.2.0-opt/delphes/3.5.1pre12-e4qfky/cards/FCC/scenarios/FCChh_II.tcl .
+cp /cvmfs/sw.hsf.org/key4hep/releases/2025-01-28/x86_64-almalinux9-gcc14.2.0-opt/delphes/3.5.1pre12-e4qfky/cards/FCC/scenarios/FCChh_II.tcl card.tcl
 cp /cvmfs/sw.hsf.org/key4hep/releases/2025-01-28/x86_64-almalinux9-gcc14.2.0-opt/delphes/3.5.1pre12-e4qfky/cards/FCC/scenarios/muonMomentumResolution_II.tcl .
 cp /cvmfs/sw.hsf.org/key4hep/releases/2025-01-28/x86_64-almalinux9-gcc14.2.0-opt/delphes/3.5.1pre12-e4qfky/cards/FCC/scenarios/trackMomentumResolution_II.tcl .
 cp /cvmfs/sw.hsf.org/key4hep/releases/2025-01-28/x86_64-almalinux9-gcc14.2.0-opt/delphes/3.5.1pre12-e4qfky/cards/FCC/scenarios/electronMomentumResolution_II.tcl .
@@ -129,7 +129,7 @@ After that just run this script:
 python stage2.py test_Hss.root out_Hss.root 0 100
 ```
 
-
+Congratz, now you have your jet events ready.
 
 
 
