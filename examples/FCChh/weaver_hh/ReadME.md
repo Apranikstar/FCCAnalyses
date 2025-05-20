@@ -98,4 +98,18 @@ DelphesPythia8_EDM4HEP card.tcl edm4hep_output_config.tcl card.cmd events_077321
 ```
 
 
+### 🚀 Time to Run Weaver Scripts
+
+Copy the `addons` directory from `FCCAnalyses` to your weaver location.
+fix these two lines:
+from addons.ONNXRuntime.python.jetFlavourHelper import JetFlavourHelper
+from addons.FastJet.python.jetClusteringHelper import ExclusiveJetClusteringHelper
+
+This output is a bit buggy, remember NOT to put / before afs because the original script does it for you.
+fccanalysis run stage1.py --output afs/cern.ch/work/h/hfatehi/centos/weaver/test_Hss.root --files-list /afs/cern.ch/work/h/hfatehi/centos/weaver/events_077321540.root --ncpus 16
+
+``` Stage one weaver is now completed```
+
+
+
 
