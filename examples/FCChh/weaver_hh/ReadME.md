@@ -113,6 +113,7 @@ fccanalysis run stage1.py --output afs/cern.ch/work/h/hfatehi/centos/weaver/test
 Stage one weaver is now completed!
 ---------
 Stage 2 will work as planned if you change the original script:
+---------
 change this:
 ```
 from examples.FCCee.weaver.config import variables_pfcand, variables_jet, flavors
@@ -130,6 +131,7 @@ python stage2.py test_Hss.root out_Hss.root 0 100
 ```
 
 Congratz, now you have your jet events ready.
+---------
 
 
 
