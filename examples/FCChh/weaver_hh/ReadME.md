@@ -111,6 +111,30 @@ This output is a bit buggy, remember NOT to put / before afs because the origina
 fccanalysis run stage1.py --output afs/cern.ch/work/h/hfatehi/centos/weaver/test_Hss.root --files-list /afs/cern.ch/work/h/hfatehi/centos/weaver/events_077321540.root --ncpus 16
 ```
 Stage one weaver is now completed!
+---------
+Stage 2 will work as planned if you change the original script:
+change this:
+```
+from examples.FCCee.weaver.config import variables_pfcand, variables_jet, flavors
+```
+to this:
+```
+from config import variables_pfcand, variables_jet, flavors
+```
+
+and increase the `maxn = 500` to `maxn = 5000` 
+
+After that just run this script:
+```
+python stage2.py test_Hss.root out_Hss.root 0 100
+```
+
+
+
+
+
+
+
 
 
 
