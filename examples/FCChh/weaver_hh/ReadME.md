@@ -142,6 +142,8 @@ CONTAINER_URI='colorsinglet.sif'
 singularity shell --nv --bind /afs/cern.ch/work/u/user/weaver-core:/workspace $CONTAINER_URI
 
 export MASTER_PORT=29500
+pip install weaver-core
+# or just add to PATH if it's missing
 
 torchrun --standalone --nnodes=1 --nproc_per_node=1 \
   -m weaver.train \
