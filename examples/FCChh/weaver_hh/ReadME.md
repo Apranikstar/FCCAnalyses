@@ -133,6 +133,34 @@ python stage2.py test_Hss.root out_Hss.root 0 100
 Congratz, now you have your jet events ready.
 ---------
 
+Now how to run `weaver-core` using the provided container:
+
+```
+#!/bin/bash
+
+CONTAINER_URI='colorsinglet.sif'
+singularity shell --nv --bind /afs/cern.ch/work/u/user/weaver-core:/workspace $CONTAINER_URI
+
+export MASTER_PORT=29500
+
+torchrun --standalone --nnodes=1 --nproc_per_node=1 \
+  -m weaver.train \
+  --data-train /workspace/events_077321540.root \
+  --data-config /workspace/example.yaml \
+  --network-config /workspace/example_ParticleTransformer.py \
+  --model-prefix /workspace/trainings/test4GPUs/baseline_test4GPUs \
+  --num-workers 1 \
+  --gpus 0 \
+  --batch-size 2048 \
+  --start-lr 1e-3 \
+  --num-epochs 20 \
+  --optimizer ranger \
+  --fetch-step 0.01 \
+  --backend nccl
+
+
+```
+
 
 
 
