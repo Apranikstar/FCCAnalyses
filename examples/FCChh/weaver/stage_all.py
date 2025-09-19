@@ -50,15 +50,15 @@ def main():
     
 
     flavor_to_process = {
-    "jj": "jj",  # THIS is the fix!
-    "qq": "qq",    
-    "bb": "bb",
-    "cc": "cc",
-    "ss": "ss",
-    "gg": "gg",
-    "tautau": "tautau",
-    "tt": "tt",
-    "uuddss" : "qq",
+        "bb": "bb",
+        "cc": "cc",
+        "gg": "gg",
+        "tautau": "tautau",
+        "uuddss": "qq",
+        "zhadzhad" :"zhzh",
+        "whadwhad" : "whwh",
+        "tleptlep" : "tltl",
+        "thadthad" : "thth", 
 }
     process = get_process_from_sample(sample)
     if process not in flavor_to_process:
