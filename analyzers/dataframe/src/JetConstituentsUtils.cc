@@ -133,6 +133,35 @@ namespace FCCAnalyses
       return cast_constituent(jcs, ReconstructedParticle::get_p);
     }
 
+    rv::RVec<FCCAnalysesJetConstituentsData> get_px(const rv::RVec<FCCAnalysesJetConstituents> &jcs)
+    {
+      return cast_constituent(jcs, ReconstructedParticle::get_px);
+    }
+
+    rv::RVec<FCCAnalysesJetConstituentsData> get_py(const rv::RVec<FCCAnalysesJetConstituents> &jcs)
+    {
+      return cast_constituent(jcs, ReconstructedParticle::get_py);
+    }
+
+    rv::RVec<FCCAnalysesJetConstituentsData> get_pz(const rv::RVec<FCCAnalysesJetConstituents> &jcs)
+    {
+      return cast_constituent(jcs, ReconstructedParticle::get_pz);
+    }
+
+    rv::RVec<int> mask(const rv::RVec<FCCAnalysesJetConstituentsData> &energies)
+    {
+        rv::RVec<int> out;
+        for (const auto &e_vec : energies)
+        {
+            for (const auto &e : e_vec)
+            {
+                out.emplace_back(e != 0.0f ? 1 : 0);
+            }
+        }
+        return out;
+    }
+
+
     rv::RVec<FCCAnalysesJetConstituentsData> get_e(const rv::RVec<FCCAnalysesJetConstituents> &jcs)
     {
       return cast_constituent(jcs, ReconstructedParticle::get_e);
