@@ -148,18 +148,20 @@ namespace FCCAnalyses
       return cast_constituent(jcs, ReconstructedParticle::get_pz);
     }
 
-    rv::RVec<int> mask(const rv::RVec<FCCAnalysesJetConstituentsData> &energies)
+    rv::RVec<rv::RVec<int>> mask(const rv::RVec<FCCAnalysesJetConstituentsData> &energies)
+{
+    rv::RVec<rv::RVec<int>> out;
+    for (const auto &e_vec : energies)  // Iterates over all jets (1, 2, 3, ...)
     {
-        rv::RVec<int> out;
-        for (const auto &e_vec : energies)
+        rv::RVec<int> jet_mask;
+        for (const auto &e : e_vec)  // Iterates over constituents in each jet
         {
-            for (const auto &e : e_vec)
-            {
-                out.emplace_back(e != 0.0f ? 1 : 0);
-            }
+            jet_mask.emplace_back(e != 0.0f ? 1 : 0);
         }
-        return out;
+        out.emplace_back(jet_mask);
     }
+    return out;
+}
 
 
     rv::RVec<FCCAnalysesJetConstituentsData> get_e(const rv::RVec<FCCAnalysesJetConstituents> &jcs)
