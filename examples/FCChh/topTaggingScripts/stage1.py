@@ -32,11 +32,9 @@ processList = {
     "mgp8_pp_zhadzhad_PTmin_5000_5f_84TeV": {"fraction": 1,'chunks': 10},
 }
 
-outputDir = "/eos/user/h/hfatehi/bounds/"
+outputDir = "./output/"
 inputDir = "/eos/experiment/fcc/hh/generation/DelphesEvents/fcc_v07/II_trackCov"
 nCPUS = -1
-
-
 
 model_name = "topTagging-IR9"
 model_dir = os.path.join(os.getcwd(), model_name)
@@ -51,8 +49,6 @@ def get_file_path(filename):
 
 weaver_preproc = get_file_path(local_preproc)
 weaver_model   = get_file_path(local_model)
-
-
 
 from jetFlavourHelper import JetFlavourHelper
 
