@@ -57,7 +57,7 @@ class Analysis():
          }
 
         # Mandatory: Production tag (input directory)
-        self.prod_tag = '/eos/experiment/fcc/hh/generation/DelphesEvents/fcc_v07/II_trackCov'
+        self.input_dir = '/eos/experiment/fcc/hh/generation/DelphesEvents/fcc_v07/II_trackCov'
 
         # Optional: output directory
         self.output_dir = './SMEFT'
