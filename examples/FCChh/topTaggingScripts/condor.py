@@ -87,7 +87,9 @@ class Analysis():
         self.model_name = "topTagging-IR9"
 
         # Directory that actually contains the files
-        self.model_dir = "/eos/user/h/hfatehi/IR9/topTagging-IR9"
+        #self.model_dir = "/eos/user/h/hfatehi/IR9/topTagging-IR9"
+        
+        self.model_dir = os.path.join(os.getcwd(), self.model_name)
 
         local_preproc = os.path.join(self.model_dir, f"{self.model_name}.json")
         local_model   = os.path.join(self.model_dir, f"{self.model_name}.onnx")
