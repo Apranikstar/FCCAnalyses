@@ -37,27 +37,20 @@ inputDir = "/eos/experiment/fcc/hh/generation/DelphesEvents/fcc_v07/II_trackCov"
 nCPUS = -1
 
 
+
 model_name = "topTagging-IR9"
-url_model_dir = ""
-url_preproc = "{}/{}.json".format(url_model_dir, model_name)
-url_model = "{}/{}.onnx".format(url_model_dir, model_name)
-model_dir = "./"
-local_preproc = "{}/{}.json".format(model_dir, model_name)
-local_model = "{}/{}.onnx".format(model_dir, model_name)
+model_dir = os.path.join(os.getcwd(), model_name)
 
-def get_file_path(url, filename):
-    """Return local file path if exists else download from url and return basename."""
-    if os.path.exists(filename):
-        return os.path.abspath(filename)
-    else:
-        basename = os.path.basename(url)
-        print(f"Downloading {basename} from {url}...")
-        urllib.request.urlretrieve(url, basename)
-        return os.path.abspath(basename)
+local_preproc = os.path.join(model_dir, f"{model_name}.json")
+local_model   = os.path.join(model_dir, f"{model_name}.onnx")
 
-weaver_preproc = get_file_path(url_preproc, local_preproc)
-weaver_model = get_file_path(url_model, local_model)
+def get_file_path(filename):
+    if not os.path.exists(filename):
+        raise FileNotFoundError(f"Required file not found: {filename}")
+    return os.path.abspath(filename)
 
+weaver_preproc = get_file_path(local_preproc)
+weaver_model   = get_file_path(local_model)
 
 
 
