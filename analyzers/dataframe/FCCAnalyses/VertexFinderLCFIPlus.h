@@ -126,13 +126,18 @@ namespace VertexFinderLCFIPlus{
 
   /** returns V0s reconstructed from a set of tracks (as an FCCAnalysesV0 object)
    *  constraint thresholds can be set manually
+   *  dR_pair_cut > 0 rejects track pairs that are not roughly collinear (dR above the cut);
+   *  <= 0 (default) disables the preselection
+   *  exclusive_tracks = true skips tracks already used by an earlier V0 candidate, so each
+   *  track ends up in at most one V0; false (default) is maximally inclusive
    */
   VertexingUtils::FCCAnalysesV0 get_V0s( ROOT::VecOps::RVec<edm4hep::TrackState> np_tracks,
 					 VertexingUtils::FCCAnalysesVertex PV,
 					 double Ks_invM_low=0.493, double Ks_invM_high=0.503, double Ks_dis=0.5, double Ks_cosAng=0.999,
 					 double Lambda_invM_low=1.111, double Lambda_invM_high=1.121, double Lambda_dis=0.5, double Lambda_cosAng=0.99995,
 					 double Gamma_invM_low=0., double Gamma_invM_high=0.005, double Gamma_dis=9, double Gamma_cosAng=0.99995,
-					 double chi2_cut=9., double solenoidBz=2.0 ) ;
+					 double chi2_cut=9., double solenoidBz=2.0, double dR_pair_cut=-1.,
+					 bool exclusive_tracks=false ) ;
 
   /** returns V0s reconstructed in each jet of the event (as an FCCAnalysesV0 object)
    *  need to perform jet clustering before calling this function

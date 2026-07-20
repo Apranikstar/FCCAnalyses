@@ -192,8 +192,12 @@ ROOT::VecOps::RVec<int> VertexSeed_best(ROOT::VecOps::RVec<edm4hep::TrackState> 
       ROOT::VecOps::RVec<bool> isInV0 = isV0(tr_pair, PV, tight_v0_seed, solenoidBz);
       if(isInV0[0] && isInV0[1]) continue;
       
-      vtx_seed = VertexFitterSimple::VertexFitter_Tk(2, tr_pair, false, 0., 0., 0., 0., 0., 0., solenoidBz);
-      
+      // fast prefilter (mirrors ntuplizer VertexSeed_best)
+      auto vtx_fast = VertexFitterSimple::VertexFitter_Tk(2, tr_pair, false, 0., 0., 0., 0., 0., 0., solenoidBz, true, true);
+      if (vtx_fast.vertex.chi2 >= chi2_cut) continue;
+
+      vtx_seed = VertexFitterSimple::VertexFitter_Tk(2, tr_pair, false, 0., 0., 0., 0., 0., 0., solenoidBz, true);
+
       // Constraints check
       bool pass = check_constraints(vtx_seed, tr_pair, PV, true, chi2_cut, invM_cut);
       if(!pass) continue;
@@ -252,7 +256,15 @@ ROOT::VecOps::RVec<int> addTrack_best(ROOT::VecOps::RVec<edm4hep::TrackState> tr
     if (dR_prefilter_cut > 0 && p_i.DeltaR(p_tracks_sum) > dR_prefilter_cut) continue;
     tr_vtx[iTr] = tracks[i];
     
-    vtx = VertexFitterSimple::VertexFitter_Tk(2, tr_vtx, false, 0., 0., 0., 0., 0., 0., solenoidBz);
+    // fast prefilter (mirrors ntuplizer addTrack_best): cut on the vertex chi2 and on the
+    // chi2 of the track being added, both taken from the fast fit
+    auto vtx_fast = VertexFitterSimple::VertexFitter_Tk(2, tr_vtx, false, 0., 0., 0., 0., 0., 0., solenoidBz, true, true);
+    double nDOF_fast = 2*(iTr+1) - 3;
+    if (vtx_fast.vertex.chi2 * nDOF_fast >= chi2_cut) continue;
+    ROOT::VecOps::RVec<float> chi2_tr_fast = vtx_fast.reco_chi2;
+    if (chi2_tr_fast.size() == tr_vtx.size() && chi2_tr_fast[tr_vtx.size()-1] >= chi2Tr_cut) continue;
+
+    vtx = VertexFitterSimple::VertexFitter_Tk(2, tr_vtx, false, 0., 0., 0., 0., 0., 0., solenoidBz, true);
 
     // Constraints
     bool pass = check_constraints(vtx, tr_vtx, PV, false, chi2_cut, invM_cut, chi2Tr_cut);
@@ -331,7 +343,7 @@ ROOT::VecOps::RVec<VertexingUtils::FCCAnalysesVertex> findSVfromTracks(ROOT::Vec
       tr_vtx_fin.push_back(tracks_fin[i_tr]);
       if(debug_me) std::cout << "Pushing back tracks_fin[i_tr]" << std::endl;
     }
-    VertexingUtils::FCCAnalysesVertex sec_vtx = VertexFitterSimple::VertexFitter_Tk(2, tr_vtx_fin, alltracks, false, 0., 0., 0., 0., 0., 0., solenoidBz); // flag 2 for SVs
+    VertexingUtils::FCCAnalysesVertex sec_vtx = VertexFitterSimple::VertexFitter_Tk(2, tr_vtx_fin, alltracks, false, 0., 0., 0., 0., 0., 0., solenoidBz, true); // flag 2 for SVs
 
     // see if we can also get indices in the reco collection (for tracks forming an SV)
     //sec_vtx.reco_ind = VertexFitterSimple::get_reco_ind(recoparticles,thetracks); // incorrect
@@ -428,7 +440,7 @@ ROOT::VecOps::RVec<bool> isV0(ROOT::VecOps::RVec<edm4hep::TrackState> np_tracks,
       if(t_pair[0].omega * np_tracks[j].omega > 0) continue; // don't pair tracks with same charge (same sign curvature = same sign charge)
       t_pair[1] = np_tracks[j];
 
-      ROOT::VecOps::RVec<double> V0_cand = get_V0candidate(V0, t_pair, PV, false, 9., solenoidBz);
+      ROOT::VecOps::RVec<double> V0_cand = get_V0candidate(V0, t_pair, PV, true, 10., solenoidBz);
 
       // Ks
       if(V0_cand[0]>isKs[0] && V0_cand[0]<isKs[1] && V0_cand[4]>isKs[2] && V0_cand[5]>isKs[3]) {
@@ -501,17 +513,17 @@ VertexingUtils::FCCAnalysesV0 get_V0s(ROOT::VecOps::RVec<edm4hep::TrackState> np
   tr_pair.push_back(tr_j);
   //
   for(unsigned int i=0; i<nTr-1; i++) {
-    if(isInV0[i] == true) continue; // don't pair a track if it already forms a V0
+    //if(isInV0[i] == true) continue; // disabled: allow track to appear in multiple V0s (matches ntuplizer)
     tr_pair[0] = np_tracks[i];
 
     for(unsigned int j=i+1; j<nTr; j++) {
-      if(isInV0[j] == true) continue; // don't pair a track if it already forms a V0
+      //if(isInV0[j] == true) continue; // disabled: allow track to appear in multiple V0s (matches ntuplizer)
       if(tr_pair[0].omega * np_tracks[j].omega > 0) continue; // don't pair tracks with same charge (same sign curvature = same sign charge)
       tr_pair[1] = np_tracks[j];
 
       ROOT::VecOps::RVec<double> V0_cand = get_V0candidate(V0_vtx, tr_pair, PV, true, chi2_cut, solenoidBz);
       if(V0_cand[0] == -1) continue;
-      
+
       // Ks
       if(V0_cand[0]>isKs[0] && V0_cand[0]<isKs[1] && V0_cand[4]>isKs[2] && V0_cand[5]>isKs[3]) {
 	if(debug_me) std::cout<<"Found a Ks"<<std::endl;
@@ -520,38 +532,34 @@ VertexingUtils::FCCAnalysesV0 get_V0s(ROOT::VecOps::RVec<edm4hep::TrackState> np
 	vtx.push_back(V0_vtx);
 	pdgAbs.push_back(310);
 	invM.push_back(V0_cand[0]);
-	break;
       }
-      
-      // Lambda0
-      else if(V0_cand[1]>isLambda0[0] && V0_cand[1]<isLambda0[1] && V0_cand[4]>isLambda0[2] && V0_cand[5]>isLambda0[3]) {
+
+      // Lambda0 (both mass assignments checked independently)
+      if(V0_cand[1]>isLambda0[0] && V0_cand[1]<isLambda0[1] && V0_cand[4]>isLambda0[2] && V0_cand[5]>isLambda0[3]) {
 	if(debug_me) std::cout<<"Found a Lambda0"<<std::endl;
 	isInV0[i] = true;
 	isInV0[j] = true;
 	vtx.push_back(V0_vtx);
 	pdgAbs.push_back(3122);
 	invM.push_back(V0_cand[1]);
-	break;
       }
-      else if(V0_cand[2]>isLambda0[0] && V0_cand[2]<isLambda0[1] && V0_cand[4]>isLambda0[2] && V0_cand[5]>isLambda0[3]) {
+      if(V0_cand[2]>isLambda0[0] && V0_cand[2]<isLambda0[1] && V0_cand[4]>isLambda0[2] && V0_cand[5]>isLambda0[3]) {
 	if(debug_me) std::cout<<"Found a Lambda0"<<std::endl;
 	isInV0[i] = true;
 	isInV0[j] = true;
 	vtx.push_back(V0_vtx);
 	pdgAbs.push_back(3122);
 	invM.push_back(V0_cand[2]);
-	break;
       }
-	
+
       // photon conversion
-      else if(V0_cand[3]<isGamma[1] && V0_cand[4]>isGamma[2] && V0_cand[5]>isGamma[3]) {
+      if(V0_cand[3]<isGamma[1] && V0_cand[4]>isGamma[2] && V0_cand[5]>isGamma[3]) {
 	if(debug_me) std::cout<<"Found a Photon coversion"<<std::endl;
 	isInV0[i] = true;
 	isInV0[j] = true;
 	vtx.push_back(V0_vtx);
 	pdgAbs.push_back(22);
 	invM.push_back(V0_cand[3]);
-	break;
       }
       //
     }
@@ -569,7 +577,8 @@ VertexingUtils::FCCAnalysesV0 get_V0s(ROOT::VecOps::RVec<edm4hep::TrackState> np
 				      double Ks_invM_low, double Ks_invM_high, double Ks_dis, double Ks_cosAng,
 				      double Lambda_invM_low, double Lambda_invM_high, double Lambda_dis, double Lambda_cosAng,
 				      double Gamma_invM_low, double Gamma_invM_high, double Gamma_dis, double Gamma_cosAng,
-				      double chi2_cut, double solenoidBz) {
+				      double chi2_cut, double solenoidBz, double dR_pair_cut,
+				      bool exclusive_tracks) {
   // V0 reconstruction
   // by default set to the tight set of constraints
 
@@ -599,17 +608,24 @@ VertexingUtils::FCCAnalysesV0 get_V0s(ROOT::VecOps::RVec<edm4hep::TrackState> np
   tr_pair.push_back(tr_j);
   //
   for(unsigned int i=0; i<nTr-1; i++) {
-    if(isInV0[i] == true) continue; // don't pair a track if it already forms a V0
+    if(exclusive_tracks && isInV0[i]) continue; // track already used by an earlier V0 candidate
     tr_pair[0] = np_tracks[i];
+    TVector3 p_i(TMath::Cos(np_tracks[i].phi), TMath::Sin(np_tracks[i].phi), np_tracks[i].tanLambda);
 
     for(unsigned int j=i+1; j<nTr; j++) {
-      if(isInV0[j] == true) continue; // don't pair a track if it already forms a V0
+      if(exclusive_tracks && isInV0[j]) continue; // track already used by an earlier V0 candidate
       if(tr_pair[0].omega * np_tracks[j].omega > 0) continue; // don't pair tracks with same charge (same sign curvature = same sign charge)
       tr_pair[1] = np_tracks[j];
 
+      // optional preselection: the two tracks must point in roughly the same direction
+      if(dR_pair_cut > 0) {
+	TVector3 p_j(TMath::Cos(np_tracks[j].phi), TMath::Sin(np_tracks[j].phi), np_tracks[j].tanLambda);
+	if(p_i.DeltaR(p_j) > dR_pair_cut) continue;
+      }
+
       ROOT::VecOps::RVec<double> V0_cand = get_V0candidate(V0_vtx, tr_pair, PV, true, chi2_cut, solenoidBz);
       if(V0_cand[0] == -1) continue;
-      
+
       // Ks
       if(V0_cand[0]>isKs[0] && V0_cand[0]<isKs[1] && V0_cand[4]>isKs[2] && V0_cand[5]>isKs[3]) {
 	if(debug_me) std::cout<<"Found a Ks"<<std::endl;
@@ -618,38 +634,34 @@ VertexingUtils::FCCAnalysesV0 get_V0s(ROOT::VecOps::RVec<edm4hep::TrackState> np
 	vtx.push_back(V0_vtx);
 	pdgAbs.push_back(310);
 	invM.push_back(V0_cand[0]);
-	break;
       }
-      
-      // Lambda0
-      else if(V0_cand[1]>isLambda0[0] && V0_cand[1]<isLambda0[1] && V0_cand[4]>isLambda0[2] && V0_cand[5]>isLambda0[3]) {
+
+      // Lambda0 (both mass assignments checked independently)
+      if(V0_cand[1]>isLambda0[0] && V0_cand[1]<isLambda0[1] && V0_cand[4]>isLambda0[2] && V0_cand[5]>isLambda0[3]) {
 	if(debug_me) std::cout<<"Found a Lambda0"<<std::endl;
 	isInV0[i] = true;
 	isInV0[j] = true;
 	vtx.push_back(V0_vtx);
 	pdgAbs.push_back(3122);
 	invM.push_back(V0_cand[1]);
-	break;
       }
-      else if(V0_cand[2]>isLambda0[0] && V0_cand[2]<isLambda0[1] && V0_cand[4]>isLambda0[2] && V0_cand[5]>isLambda0[3]) {
+      if(V0_cand[2]>isLambda0[0] && V0_cand[2]<isLambda0[1] && V0_cand[4]>isLambda0[2] && V0_cand[5]>isLambda0[3]) {
 	if(debug_me) std::cout<<"Found a Lambda0"<<std::endl;
 	isInV0[i] = true;
 	isInV0[j] = true;
 	vtx.push_back(V0_vtx);
 	pdgAbs.push_back(3122);
 	invM.push_back(V0_cand[2]);
-	break;
       }
-	
+
       // photon conversion
-      else if(V0_cand[3]<isGamma[1] && V0_cand[4]>isGamma[2] && V0_cand[5]>isGamma[3]) {
+      if(V0_cand[3]<isGamma[1] && V0_cand[4]>isGamma[2] && V0_cand[5]>isGamma[3]) {
 	if(debug_me) std::cout<<"Found a Photon coversion"<<std::endl;
 	isInV0[i] = true;
 	isInV0[j] = true;
 	vtx.push_back(V0_vtx);
 	pdgAbs.push_back(22);
 	invM.push_back(V0_cand[3]);
-	break;
       }
       //
     }
@@ -826,7 +838,7 @@ ROOT::VecOps::RVec<double> get_V0candidate(VertexingUtils::FCCAnalysesVertex &V0
 
   edm4hep::Vector3f r_PV = PV.vertex.position; // in mm
   
-  V0_vtx = VertexFitterSimple::VertexFitter_Tk(2, tr_pair, false, 0., 0., 0., 0., 0., 0., solenoidBz);
+  V0_vtx = VertexFitterSimple::VertexFitter_Tk(2, tr_pair, false, 0., 0., 0., 0., 0., 0., solenoidBz, true);
 
   if(chi2) {
     // constraint on chi2: chi2 < cut (9)
@@ -864,17 +876,19 @@ ROOT::VecOps::RVec<double> constraints_Ks(bool tight) {
 
   ROOT::VecOps::RVec<double> result(4, 0);
 
+  // ALEPH-tuned values, matching ntuplizer (analyzer_svfinder.cxx constraints_Ks).
+  // Wider mass windows than FCC-ee defaults to match ALEPH momentum resolution.
   if(tight) {
-    result[0] = 0.493;
-    result[1] = 0.503;
-    result[2] = 0.5;
+    result[0] = 0.453; // widened for ALEPH (FCC-ee original: 0.493)
+    result[1] = 0.553; // widened for ALEPH (FCC-ee original: 0.503)
+    result[2] = 0.1;   // dis_min [mm] (FCC-ee original: 0.5)
     result[3] = 0.999;
   }
 
   else {
-    result[0] = 0.488;
-    result[1] = 0.508;
-    result[2] = 0.3;
+    result[0] = 0.1;   // widened for sideband (FCC-ee original: 0.488)
+    result[1] = 1.4;   // widened for sideband (FCC-ee original: 0.508)
+    result[2] = 0.1;   // dis_min [mm] (FCC-ee original: 0.3)
     result[3] = 0.999;
   }
   //
@@ -885,17 +899,18 @@ ROOT::VecOps::RVec<double> constraints_Lambda0(bool tight) {
 
   ROOT::VecOps::RVec<double> result(4, 0);
 
+  // ALEPH-tuned values, matching ntuplizer (analyzer_svfinder.cxx constraints_Lambda0).
   if(tight) {
-    result[0] = 1.111;
-    result[1] = 1.121;
-    result[2] = 0.5;
+    result[0] = 1.06;    // widened for ALEPH (FCC-ee original: 1.111)
+    result[1] = 1.16;    // widened for ALEPH (FCC-ee original: 1.121)
+    result[2] = 0.1;     // dis_min [mm] (FCC-ee original: 0.5)
     result[3] = 0.99995;
   }
 
   else {
-    result[0] = 1.106;
-    result[1] = 1.126;
-    result[2] = 0.3;
+    result[0] = 0.1;     // widened for sideband (FCC-ee original: 1.106)
+    result[1] = 1.4;     // widened for sideband (FCC-ee original: 1.126)
+    result[2] = 0.1;     // dis_min [mm] (FCC-ee original: 0.3)
     result[3] = 0.999;
   }
   //
@@ -906,15 +921,16 @@ ROOT::VecOps::RVec<double> constraints_Gamma(bool tight) {
 
   ROOT::VecOps::RVec<double> result(4, 0);
 
+  // ALEPH-tuned values, matching ntuplizer (analyzer_svfinder.cxx constraints_Gamma).
   if(tight) {
     result[1] = 0.005;
-    result[2] = 9;
+    result[2] = 0.9;   // dis_min [mm] (FCC-ee original: 9)
     result[3] = 0.99995;
   }
 
   else {
-    result[1] = 0.01;
-    result[2] = 9;
+    result[1] = -1;    // ntuplizer uses -1 (FCC-ee original: 0.01)
+    result[2] = 0.9;   // dis_min [mm] (FCC-ee original: 9)
     result[3] = 0.999;
   }
   //

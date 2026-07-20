@@ -51,14 +51,18 @@ namespace VertexFitterSimple{
 						      bool BeamSpotConstraint = false,
 						      double sigmax=0., double sigmay=0., double sigmaz=0.,
                                                       double bsc_x=0., double bsc_y=0., double bsc_z=0.,
-                                                      double solenoidBz=2.0 )  ;
+                                                      double solenoidBz=2.0,
+                                                      bool rescale_cm_mm=false,
+                                                      bool fast=false )  ;
 
   VertexingUtils::FCCAnalysesVertex  VertexFitter_Tk( int Primary, ROOT::VecOps::RVec<edm4hep::TrackState> tracks,
                                                       const ROOT::VecOps::RVec<edm4hep::TrackState>& alltracks,
                                                       bool BeamSpotConstraint = false,
                                                       double sigmax=0., double sigmay=0., double sigmaz=0.,
                                                       double bsc_x=0., double bsc_y=0., double bsc_z=0.,
-                                                      double solenoidBz=2.0 )  ;
+                                                      double solenoidBz=2.0,
+                                                      bool rescale_cm_mm=false,
+                                                      bool fast=false )  ;
 
 /// Return the tracks that are flagged as coming from the primary vertex
    ROOT::VecOps::RVec<edm4hep::TrackState> get_PrimaryTracks(           ROOT::VecOps::RVec<edm4hep::TrackState> tracks,

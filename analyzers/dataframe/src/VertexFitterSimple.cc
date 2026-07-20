@@ -12,6 +12,147 @@
 
 //#include "TrkUtil.h"    // from delphes
 
+// -----------------------------------------------------------------------
+// VertexFitFast: single-stage vertex fitter (no track parameter steering).
+// Copied verbatim from aleph-ntuplizer/analyzers/VertexFitFast.{h,cc}
+// for temporary testing — remove once validation is complete.
+// -----------------------------------------------------------------------
+class VertexFitFast : public TrkUtil {
+ private:
+  Int_t fNtr;
+  std::vector<TVectorD*> fPar, fParNew;
+  std::vector<TMatrixDSym*> fCov, fCovNew;
+  std::vector<Bool_t> fCharged;
+  Bool_t fVtxCst;
+  TVectorD fxCst;
+  TMatrixDSym fCovCst, fCovCstInv;
+  Bool_t fVtxDone;
+  Double_t fRstart;
+  TVectorD fXv;
+  TMatrixDSym fcovXv;
+  Double_t fChi2;
+  TVectorD fChi2List;
+  std::vector<Double_t> ffi;
+  std::vector<TVectorD*> fx0i, fai, fdi;
+  std::vector<Double_t> fa2i;
+  std::vector<TMatrixD*> fAti;
+  std::vector<TMatrixDSym*> fDi, fWi, fWinvi;
+  void ResetWrkArrays() {
+    Int_t N = (Int_t)fdi.size();
+    if (N > 0) {
+      for (Int_t i = 0; i < N; i++) {
+        if (fx0i[i])   { fx0i[i]->Clear();   delete fx0i[i]; }
+        if (fai[i])    { fai[i]->Clear();    delete fai[i]; }
+        if (fdi[i])    { fdi[i]->Clear();    delete fdi[i]; }
+        if (fAti[i])   { fAti[i]->Clear();   delete fAti[i]; }
+        if (fDi[i])    { fDi[i]->Clear();    delete fDi[i]; }
+        if (fWi[i])    { fWi[i]->Clear();    delete fWi[i]; }
+        if (fWinvi[i]) { fWinvi[i]->Clear(); delete fWinvi[i]; }
+      }
+      fa2i.clear(); fx0i.clear(); fai.clear(); fdi.clear();
+      fAti.clear(); fDi.clear(); fWi.clear(); fWinvi.clear();
+    }
+  }
+  TVectorD Fill_x(TVectorD par, Double_t phi, Bool_t Q) {
+    TVectorD x(3);
+    TVector3 xt = Q ? Xtrack(par, phi) : Xtrack_N(par, phi);
+    for (Int_t i = 0; i < 3; i++) x(i) = xt(i);
+    return x;
+  }
+  void VtxFitNoSteer() {
+    std::vector<TVectorD*> x0i, ni;
+    std::vector<TMatrixDSym*> Ci;
+    std::vector<TVectorD*> wi;
+    std::vector<Double_t> s_in;
+    for (Int_t i = 0; i < fNtr; i++) {
+      TVectorD par = *fPar[i];
+      TMatrixDSym Cov = *fCov[i];
+      Double_t s = 0.;
+      if (fRstart > TMath::Abs(par(0))) {
+        if (fCharged[i]) s = 2.*TMath::ASin(par(2)*TMath::Sqrt((fRstart*fRstart-par(0)*par(0))/(1.+2.*par(2)*par(0))));
+        else             s = TMath::Sqrt(fRstart*fRstart - par(0)*par(0));
+      }
+      x0i.push_back(new TVectorD(Fill_x(par, s, fCharged[i])));
+      TMatrixD A(3, 5);
+      if (fCharged[i]) { ni.push_back(new TVectorD(derXds(par, s)));   A = derXdPar(par, s); }
+      else             { ni.push_back(new TVectorD(derXds_N(par, s))); A = derXdPar_N(par, s); }
+      Ci.push_back(new TMatrixDSym(Cov.Similarity(A)));
+      TMatrixDSym Cinv = RegInv(*Ci[i]);
+      wi.push_back(new TVectorD(Cinv * (*ni[i])));
+      s_in.push_back(s);
+    }
+    TMatrixDSym D(3); D.Zero();
+    TVectorD Dx(3); Dx.Zero();
+    for (Int_t i = 0; i < fNtr; i++) {
+      TMatrixDSym Cinv = RegInv(*Ci[i]);
+      TMatrixDSym W(3);
+      W.Rank1Update(*wi[i], 1. / Ci[i]->Similarity(*wi[i]));
+      TMatrixDSym Dd = Cinv - W;
+      D += Dd; Dx += Dd * (*x0i[i]);
+    }
+    if (fVtxCst) { D += fCovCstInv; Dx += fCovCstInv * fxCst; }
+    fXv = RegInv(D) * Dx;
+    fChi2 = 0.0;
+    for (Int_t i = 0; i < fNtr; i++) {
+      TVectorD r = (*x0i[i]) - fXv;
+      TMatrixDSym Cinv = RegInv(*Ci[i]);
+      TMatrixDSym W(3);
+      W.Rank1Update(*wi[i], 1. / Ci[i]->Similarity(*wi[i]));
+      TMatrixDSym Dd = Cinv - W;
+      double chi2 = r * (Dd * r);
+      fChi2 += chi2;
+      fChi2List(i) = chi2;
+    }
+    for (Int_t i = 0; i < fNtr; i++) {
+      Double_t si = Dot(*wi[i], fXv - (*x0i[i])) / Ci[i]->Similarity(*wi[i]);
+      ffi.push_back(si + s_in[i]);
+    }
+    for (Int_t i = 0; i < fNtr; i++) {
+      x0i[i]->Clear(); delete x0i[i];
+      ni[i]->Clear();  delete ni[i];
+      Ci[i]->Clear();  delete Ci[i];
+      wi[i]->Clear();  delete wi[i];
+    }
+  }
+  void VertexFitter() {
+    if (fNtr < 2 && !fVtxCst) { std::cerr << "VertexFitFast: <2 tracks\n"; std::exit(1); }
+    VtxFitNoSteer();
+    fVtxDone = kTRUE;
+  }
+ public:
+  VertexFitFast() : fNtr(0), fRstart(-1.), fVtxDone(kFALSE), fVtxCst(kFALSE) {
+    fxCst.ResizeTo(3); fCovCst.ResizeTo(3,3); fCovCstInv.ResizeTo(3,3);
+    fXv.ResizeTo(3); fcovXv.ResizeTo(3,3);
+  }
+  VertexFitFast(Int_t Ntr, TVectorD** trkPar, TMatrixDSym** trkCov)
+      : fNtr(Ntr), fRstart(-1.), fVtxDone(kFALSE), fVtxCst(kFALSE) {
+    fxCst.ResizeTo(3); fCovCst.ResizeTo(3,3); fCovCstInv.ResizeTo(3,3);
+    fXv.ResizeTo(3); fcovXv.ResizeTo(3,3);
+    fChi2List.ResizeTo(fNtr);
+    for (Int_t i = 0; i < fNtr; i++) {
+      fPar.push_back(new TVectorD(*trkPar[i]));
+      fParNew.push_back(new TVectorD(*trkPar[i]));
+      fCov.push_back(new TMatrixDSym(*trkCov[i]));
+      fCovNew.push_back(new TMatrixDSym(*trkCov[i]));
+      fCharged.push_back(kTRUE);
+    }
+  }
+  ~VertexFitFast() {
+    fxCst.Clear(); fCovCst.Clear(); fCovCstInv.Clear();
+    fXv.Clear(); fcovXv.Clear(); fChi2List.Clear();
+    for (Int_t i = 0; i < fNtr; i++) {
+      fPar[i]->Clear(); delete fPar[i]; fParNew[i]->Clear(); delete fParNew[i];
+      fCov[i]->Clear(); delete fCov[i]; fCovNew[i]->Clear(); delete fCovNew[i];
+    }
+    ResetWrkArrays(); ffi.clear(); fCharged.clear(); fNtr = 0;
+  }
+  TVectorD      GetVtx()        { if (!fVtxDone) VertexFitter(); return fXv; }
+  TMatrixDSym   GetVtxCov()     { if (!fVtxDone) VertexFitter(); return fcovXv; }
+  Double_t      GetVtxChi2()    { if (!fVtxDone) VertexFitter(); return fChi2; }
+  TVectorD      GetVtxChi2List(){ if (!fVtxDone) VertexFitter(); return fChi2List; }
+};
+// -----------------------------------------------------------------------
+
 namespace FCCAnalyses {
 
 namespace VertexFitterSimple {
@@ -87,11 +228,12 @@ VertexingUtils::FCCAnalysesVertex
 VertexFitter_Tk(int Primary, ROOT::VecOps::RVec<edm4hep::TrackState> tracks,
                 bool BeamSpotConstraint, double bsc_sigmax, double bsc_sigmay,
                 double bsc_sigmaz, double bsc_x, double bsc_y, double bsc_z,
-                double solenoidBz) {
+                double solenoidBz, bool rescale_cm_mm, bool fast) {
 
   ROOT::VecOps::RVec<edm4hep::TrackState> dummy;
   return VertexFitter_Tk(Primary, tracks, dummy, BeamSpotConstraint, bsc_sigmax,
-                         bsc_sigmay, bsc_sigmaz, bsc_x, bsc_y, bsc_z, solenoidBz);
+                         bsc_sigmay, bsc_sigmaz, bsc_x, bsc_y, bsc_z, solenoidBz,
+                         rescale_cm_mm, fast);
 }
 
 // ---------------------------------------------------------------------------------------------------------------------------
@@ -101,7 +243,7 @@ VertexFitter_Tk(int Primary, ROOT::VecOps::RVec<edm4hep::TrackState> tracks,
                 const ROOT::VecOps::RVec<edm4hep::TrackState> &alltracks,
                 bool BeamSpotConstraint, double bsc_sigmax, double bsc_sigmay,
                 double bsc_sigmaz, double bsc_x, double bsc_y, double bsc_z,
-                double solenoidBz) {
+                double solenoidBz, bool rescale_cm_mm, bool fast) {
   // Suppressing printf() output from TMatrixBase:
   // https://github.com/root-project/root/blob/722eb4652bfc79149df00c8b0e92d0837caf054c/math/matrix/src/TMatrixTBase.cxx#L662
   // The solution found here:
@@ -165,6 +307,27 @@ VertexFitter_Tk(int Primary, ROOT::VecOps::RVec<edm4hep::TrackState> tracks,
     trkCov[i] = new TMatrixDSym(Cov);
   }
 
+  if (fast) {
+    VertexFitFast theVertexFitFast(Ntr, trkPar, trkCov);
+    TVectorD x = theVertexFitFast.GetVtx();
+    result.position = edm4hep::Vector3f(x(0), x(1), x(2));
+    float Chi2 = theVertexFitFast.GetVtxChi2();
+    float Ndof = 2.0 * Ntr - 3.0;
+    result.chi2 = Chi2 / Ndof;
+    TheVertex.vertex = result;
+    // per-track chi2: the prefilter in addTrack_best cuts on it, so it must be filled
+    // here as well as in the full fit (mirrors VertexFitterMod in the ntuplizer)
+    TVectorD tracks_chi2 = theVertexFitFast.GetVtxChi2List();
+    for (Int_t i = 0; i < Ntr; i++) {
+      reco_chi2.push_back(tracks_chi2[i]);
+    }
+    TheVertex.reco_chi2 = reco_chi2;
+    for (Int_t i = 0; i < Ntr; i++) { delete trkPar[i]; delete trkCov[i]; }
+    delete[] trkPar; delete[] trkCov;
+    resume_stdout(fd);
+    return TheVertex;
+  }
+
   VertexFit theVertexFit(Ntr, trkPar, trkCov);
 
   if (BeamSpotConstraint) {
@@ -221,20 +384,55 @@ VertexFitter_Tk(int Primary, ROOT::VecOps::RVec<edm4hep::TrackState> tracks,
 #endif
   TheVertex.vertex = result;
 
-  // Use VertexMore to retrieve more information :
-  VertexMore theVertexMore(&theVertexFit, Units_mm);
+  if (rescale_cm_mm) {
+    // Second fit with track parameters rescaled to mm units for VertexMore.
+    // Use when input tracks have D0/Z0 in cm and omega in cm^-1 (ALEPH native).
+    // Mirrors VertexFitterMod in the ntuplizer (analyzer_svfinder.cxx).
+    TVectorD **trkPar_2 = new TVectorD *[Ntr];
+    TMatrixDSym **trkCov_2 = new TMatrixDSym *[Ntr];
+    for (Int_t i = 0; i < Ntr; i++) {
+      edm4hep::TrackState t = tracks[i];
+      TVectorD par = VertexingUtils::get_trackParam(t, Units_mm);
+      par[0] *= 10;                   // D0: cm → mm
+      par[2] /= 10;                   // omega: cm^-1 → mm^-1
+      par[3] *= 10;                   // Z0: cm → mm
+      par[2] *= (2.0 / solenoidBz);  // correct for VertexMore's hardcoded 2 T
+      trkPar_2[i] = new TVectorD(par);
+      TMatrixDSym Cov = VertexingUtils::get_trackCov(t, Units_mm);
+      trkCov_2[i] = new TMatrixDSym(Cov);
+    }
+    VertexFit theVertexFit_2(Ntr, trkPar_2, trkCov_2);
+    theVertexFit_2.GetVtx();
+    VertexMore theVertexMore(&theVertexFit_2, Units_mm);
 
-  for (Int_t i = 0; i < Ntr; i++) {
+    for (Int_t i = 0; i < Ntr; i++) {
+      TVectorD updated_par = theVertexFit.GetNewPar(i);
+      TVectorD updated_par_edm4hep =
+          VertexingUtils::Delphes2Edm4hep_TrackParam(updated_par, Units_mm);
+      updated_track_parameters.push_back(updated_par_edm4hep);
+      // Momenta from the rescaled second fit — no further Bz correction needed
+      TVector3 ptrack_at_vertex = theVertexMore.GetMomentum(i);
+      updated_track_momentum_at_vertex.push_back(ptrack_at_vertex);
+    }
 
-    TVectorD updated_par =
-        theVertexFit.GetNewPar(i); // updated track parameters
-    TVectorD updated_par_edm4hep =
-        VertexingUtils::Delphes2Edm4hep_TrackParam(updated_par, Units_mm);
-    updated_track_parameters.push_back(updated_par_edm4hep);
+    for (Int_t i = 0; i < Ntr; i++) {
+      delete trkPar_2[i];
+      delete trkCov_2[i];
+    }
+    delete[] trkPar_2;
+    delete[] trkCov_2;
 
-    // Momenta of the tracks at the vertex, correcting for a hardcoded Bz of 2 T in Delphes util used here:
-    TVector3 ptrack_at_vertex = theVertexMore.GetMomentum(i) * (solenoidBz / 2.0);
-    updated_track_momentum_at_vertex.push_back(ptrack_at_vertex);
+  } else {
+    // Tracks already in mm — single fit, correct Bz post hoc
+    VertexMore theVertexMore(&theVertexFit, Units_mm);
+    for (Int_t i = 0; i < Ntr; i++) {
+      TVectorD updated_par = theVertexFit.GetNewPar(i);
+      TVectorD updated_par_edm4hep =
+          VertexingUtils::Delphes2Edm4hep_TrackParam(updated_par, Units_mm);
+      updated_track_parameters.push_back(updated_par_edm4hep);
+      TVector3 ptrack_at_vertex = theVertexMore.GetMomentum(i) * (solenoidBz / 2.0);
+      updated_track_momentum_at_vertex.push_back(ptrack_at_vertex);
+    }
   }
 
   TheVertex.updated_track_parameters = updated_track_parameters;
@@ -301,14 +499,15 @@ get_PrimaryTracks(ROOT::VecOps::RVec<edm4hep::TrackState> tracks,
   VertexFit theVertexFit(Ntr, trkPar, trkCov);
 
   if (BeamSpotConstraint) {
+    float conv_BSC = 1e-3; // convert mum to mm, as in VertexFitter_Tk above
     TVectorD xv_BS(3);
-    xv_BS[0] = bsc_x * 1e-6;
-    xv_BS[1] = bsc_y * 1e-6;
-    xv_BS[2] = bsc_z * 1e-6;
+    xv_BS[0] = bsc_x * conv_BSC;
+    xv_BS[1] = bsc_y * conv_BSC;
+    xv_BS[2] = bsc_z * conv_BSC;
     TMatrixDSym cov_BS(3);
-    cov_BS[0][0] = pow(bsc_sigmax * 1e-6, 2);
-    cov_BS[1][1] = pow(bsc_sigmay * 1e-6, 2);
-    cov_BS[2][2] = pow(bsc_sigmaz * 1e-6, 2);
+    cov_BS[0][0] = pow(bsc_sigmax * conv_BSC, 2);
+    cov_BS[1][1] = pow(bsc_sigmay * conv_BSC, 2);
+    cov_BS[2][2] = pow(bsc_sigmaz * conv_BSC, 2);
     theVertexFit.AddVtxConstraint(xv_BS, cov_BS);
   }
 
